@@ -1,9 +1,9 @@
 langchain
 langchain-google-genai
 langchain-groq
-tavily-pyhton
+tavily-python
 pytesseract
-strealit
+streamlit
 pandas
 numpy
 matplotlib
