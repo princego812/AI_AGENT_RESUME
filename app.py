@@ -33,7 +33,7 @@ GOOGLE_API_KEY =st.sidebar.text_input("Gemini-API",type = "password")
 GROQ_API_KEY = st.sidebar.text_input("Groq-API",type = "password") 
 TAVILY_API_KEY= st.sidebar.text_input("Tavily-API",type = "password") 
 
-all_API = [GROQ_API,GOOGLE_API,TAVILY_API]
+all_API = [GROQ_API_KEY,GOOGLE_API_KEY,TAVILY_API_KEY]
 if not all(all_API):
     st.error("Must give API keys")
     st.stop()
