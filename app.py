@@ -13,6 +13,19 @@ import pandas as pd
 import numpy as np
 
 
+# To show web-app: complete page layout
+st.set_page_config(layout="wide")
+
+
+# To Give title 
+st.title("AI RESUME GENERATOR")
+
+
+st.write(""" This app helps user to build customized professional 
+resume with latest job apply links""")
+
+st.image("bg.png")
+
 # step-3 API KEYS
 GOOGLE_API_KEY = "AQ.Ab8RN6KBx2HJbTgaa71A-bUEIt-hOSg10VSzcN6e6kvfgHVqOw"
 GROQ_API_KEY = "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"
@@ -24,8 +37,8 @@ model = ChatGoogleGenerativeAI(
     google_api_key = GOOGLE_API_KEY
     )
 
-response = model.invoke("Hello buddy!")
-response.content[-1]['text']
+# response = model.invoke("Hello buddy!")
+# response.content[-1]['text']
 
 #===============FUNCTION==================
 def search_latest_news_jobs(query):
@@ -44,7 +57,7 @@ agent = create_agent(
     model = model,
     tools = [search_latest_news_jobs]
 )
-agent
+#agent
 
 
 #=====================AGENT FUNCTION=======================
@@ -93,9 +106,9 @@ def main_agent(agent,query):
 
 
 
-code = main_agent(agent, "ALAN TURING , GEN AI EXPERT")
-from IPython import display as DISPLAY
-DISPLAY.HTML(code)
+# code = main_agent(agent, "ALAN TURING , GEN AI EXPERT")
+# from IPython import display as DISPLAY
+# DISPLAY.HTML(code)
 
 
 # fetch latest Domain related jobs using tavily
@@ -118,3 +131,6 @@ def get_jobs(agent,
     code = response['messages'][-1].content[-1]['text']
 
     return code
+
+# code = get_jobs(agent)
+# DISPLAY.HTML(code)
