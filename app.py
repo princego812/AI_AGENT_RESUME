@@ -52,6 +52,12 @@ profile_op = ["Data Analysts", "AI Engineer","Gen AI Developer", "Full-Stack Dev
 profile = st.sidebar.multiselect("Select Job Profile",options=profile_op)
 
 
+# ========================GET USER INFO=============================
+
+st.markdown("""### GET USER INFO """)
+user_Info = st.text_area("""Write your Resume Description""")
+
+
 
 # slect model 
 model = ChatGoogleGenerativeAI(
@@ -156,3 +162,14 @@ def get_jobs(agent,
 
 # code = get_jobs(agent)
 # DISPLAY.HTML(code)
+
+
+if st.button("Generate Resume"):
+    with st.spinner("Agent Running"):
+        code = main_agent(agent,user_info)
+        st.html(code, width = "stretch",
+               unsafe_allow_javascript = True)
+        st.divider()  # to give horizontal division
+        job_code = get_info(agent,location,profile)
+        st.html(job_code,width= "stretch",
+               unsafe_allow_javascript=True)
