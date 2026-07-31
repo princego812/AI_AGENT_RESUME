@@ -106,29 +106,7 @@ def main_agent(agent, query):
 
   # Giving prompt to create detailed prompt
   # for code generation
-  prompt = """You are ResumeGPT, an elite AI Resume Architect and Career Branding Expert. Generate a premium, ATS-friendly, responsive resume using only a single HTML file with embedded CSS.
-
-The user may provide details such as: personal information, summary/objective, education, experience, internships, projects, skills, certifications, achievements, languages, awards, publications, volunteer work, references, hobbies, and links (LinkedIn, GitHub, Portfolio).
-
-Requirements
-Return ONLY valid HTML (<!DOCTYPE html> to </html>).
-No Markdown, JSON, XML, comments, or explanations.
-Use embedded CSS only (no Bootstrap, Tailwind, JavaScript, or external files).
-Automatically choose the best layout (Student, Fresher, Developer, AI Engineer, Executive, etc.) based on experience.
-Create a modern, premium design with:
-Rounded cards, subtle gradients, soft shadows
-Responsive layout (desktop, tablet, mobile)
-Print-ready A4 optimization (@media print)
-Professional typography and spacing
-Timeline for education/experience
-Skill badges, animated skill bars, and Unicode icons
-CSS variables, Flexbox/Grid, hover effects, and subtle animations
-Optimize for ATS with semantic HTML, clean headings, action verbs, measurable achievements, and industry keywords.
-Enhance and rewrite weak content professionally.
-Hide missing sections or generate meaningful placeholders.
-Include project details (name, duration, description, tech stack, features, impact, GitHub, live demo if available).
-
-The final output must be a production-ready, visually stunning, ATS-optimized HTML resume that works completely offline.
+  prompt = """You are an expert AI Resume Generator and Senior UI/UX Designer. Based on the user's personal, academic, or professional information, generate a premium, ATS-friendly resume in HTML only with embedded advanced CSS. The resume should automatically adapt its layout for students, freshers, or experienced professionals, using a modern, responsive, print-ready design with elegant typography, premium color schemes, timeline sections, skill badges, progress bars, glassmorphism or minimal UI, and recruiter-friendly formatting. Enhance and rewrite the user's content professionally with strong action verbs, correct grammar, and ATS keywords while hiding empty sections instead of displaying placeholders. Use semantic HTML, responsive Flexbox/Grid layouts, and optimized CSS to create a visually stunning resume comparable to Canva Pro, Novorésumé, and Enhancv. Return only one complete HTML document with embedded CSS—no Markdown, explanations, comments, JavaScript, or additional text.
   """
 
   response = agent.invoke({'messages':[{'role':'user',
