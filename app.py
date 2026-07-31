@@ -117,12 +117,12 @@ def main_agent(agent,query):
     with open("prompt.txt","w") as f:
         f.write(deatiled_prompt)
 
-    user_details = f""" Below Given is a user details
+    user_info = f""" Below Given is a user details
     generate Resume based on that, if not
     given keep: default Resume: Pyhton Developer
     user details: {query}"""
 
-    final_prompt = prompt + deatiled_prompt + user_details
+    final_prompt = prompt + deatiled_prompt + user_info
 
 
 
