@@ -214,9 +214,9 @@ if generate_btn:
         st.stop()
         
     try:
-        # Initialize LLM directly
+        # Initialize LLM directly with updated model name
         llm = ChatGoogleGenerativeAI(
-            model='gemini-1.5-flash', 
+            model='gemini-3.5-flash-lite', 
             google_api_key=GOOGLE_API_KEY,
             temperature=0.7
         )
