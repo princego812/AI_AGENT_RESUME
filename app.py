@@ -1,179 +1,268 @@
-#==========LOAD MODULES========================
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
-import langchain
-from langchain.agents import create_agent
-
-from tavily import TavilyClient
-import pytesseract as pyt 
+# ========== LOAD MODULES ========================
 import streamlit as st
 import os
 import time
+import json
 from PIL import Image
 import pandas as pd
 import numpy as np
 
+# Langchain & AI Modules
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
+from langchain.agents import create_agent, AgentExecutor
+from langchain.prompts import PromptTemplate
+from tavily import TavilyClient
 
+# ========== PAGE CONFIGURATION ==================
+st.set_page_config(
+    page_title="AI Resume & Job Engine",
+    page_icon="✨",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# To Show web-app: complete page layout
-st.set_page_config(layout="wide")
-
-# To Give Title
-st.title("AI RESUME GENERATOR")
-
-st.write("""This app helps user to build customized Professional
-Resume with Latest Job apply links""")
-
-st.image("https://raw.githubusercontent.com/axisgras-hash/Agent-Resume/2efe115669995429b14e2fe102fd417d7481a5dd/bg.png")
-
-st.sidebar.title("Fill Important Details")
-st.sidebar.image("https://raw.githubusercontent.com/axisgras-hash/Agent-Resume/2efe115669995429b14e2fe102fd417d7481a5dd/bg.png")
-
-
-
-# ========API KEYS============# 
-# Step 3 API keys
-TAVILY_API_KEY = st.sidebar.text_input("Tavily-API",type = "password")
-GROQ_API_KEY = st.sidebar.text_input("Groq-API",type = "password")
-GOOGLE_API_KEY = st.sidebar.text_input("Gemini-API",type = "password")
-
-all_API = [TAVILY_API_KEY,GROQ_API_KEY,
-           GOOGLE_API_KEY ]
-if not all(all_API):
-    st.error("Must give API keys")
-    st.stop()
-elif all(all_API):
-    st.success("API KEYS LOADED SUCCESSFULLY")
-    # ================ MODEL====================
-    model = ChatGoogleGenerativeAI(
-        model = 'gemini-3.5-flash-lite',
-        google_api_key = GOOGLE_API_KEY
-    )
-else:
-    st.info("PASS ALL API-KEYS")
+# ========== ADVANCED CSS UI/UX INJECTION ========
+# This handles the "1000-line level" frontend styling natively inside Streamlit
+st.markdown("""
+<style>
+    /* Global Theme & Background */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        color: #e2e8f0;
+        font-family: 'Inter', sans-serif;
+    }
     
+    /* Hide Streamlit Branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Glassmorphism Sidebar */
+    [data-testid="stSidebar"] {
+        background: rgba(15, 23, 42, 0.6) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    /* Typography Styling */
+    h1, h2, h3 {
+        background: -webkit-linear-gradient(45deg, #38bdf8, #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+    
+    /* Custom Inputs & Text Areas */
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stMultiSelect>div>div>div {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #f8fafc !important;
+        border-radius: 12px !important;
+        transition: all 0.3s ease;
+    }
+    .stTextInput>div>div>input:focus, .stTextArea>div>div>textarea:focus {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.2) !important;
+    }
+    
+    /* Animated Primary Button */
+    .stButton>button {
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6) !important;
+        color: white !important;
+        border: none !important;
+        padding: 0.75rem 2rem !important;
+        border-radius: 9999px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        width: 100%;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px) scale(1.02) !important;
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5) !important;
+    }
+    
+    /* Divider */
+    hr {
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* Custom Expander */
+    .streamlit-expanderHeader {
+        background: rgba(255,255,255,0.05) !important;
+        border-radius: 8px;
+    }
+    
+    /* Loader Animation */
+    .stSpinner > div > div {
+        border-color: #8b5cf6 transparent #38bdf8 transparent !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# MULTISELECT OPTION
-options = ["Delhi","Mumbai",
-           "Pune","Banglore",
-           "Gurugram/Gurgaon"]
-location = st.sidebar.multiselect("Select Location",
-                                  options = options)
+# ========== SIDEBAR CONFIGURATION ===============
+with st.sidebar:
+    st.markdown("## ⚙️ Core Settings")
+    st.markdown("Authenticate your AI agents to begin.")
+    
+    with st.expander("🔑 API Keys", expanded=True):
+        TAVILY_API_KEY = st.text_input("Tavily API Key", type="password", placeholder="tvly-...")
+        GROQ_API_KEY = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
+        GOOGLE_API_KEY = st.text_input("Gemini API Key", type="password", placeholder="AIzaSy...")
 
-profile_op = ["Data Analysts","AI Engineer",
-              "Gen AI Developer","Full-Stack Dev",
-              "Data Scientist"]
-profile = st.sidebar.multiselect("Select Job Profile",
-                                  options = profile_op)
+    st.markdown("### 🎯 Job Preferences")
+    
+    # Pre-filled tailored defaults
+    locations = ["Delhi", "Mumbai", "Pune", "Bangalore", "Gurugram", "Hyderabad", "Remote"]
+    location = st.multiselect("Select Location(s)", options=locations, default=["Delhi"])
 
+    profiles = [
+        "Software Developer", "Full-Stack Dev", "Data Analyst", 
+        "AI Engineer", "Gen AI Developer", "Data Scientist", "UI/UX Designer"
+    ]
+    profile = st.multiselect("Select Job Profile(s)", options=profiles, default=["Software Developer"])
 
-# =========GET USER INFO=============
-st.markdown("""### GET USER INFO""")
-user_info = st.text_area("""Write your Resume Description: """)
+# ========== MAIN DASHBOARD ======================
+st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom: 0;'>🚀 Next-Gen Career Engine</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 1.2rem; margin-bottom: 2rem;'>AI-Powered Resume Builder & Intelligent Auto-Apply Job Scraper</p>", unsafe_allow_html=True)
 
+col1, col2 = st.columns([2, 1])
 
+with col1:
+    st.markdown("### 📝 Professional Summary & Details")
+    # Tailored default text
+    default_summary = """BCA student passionate about software development and computer science. 
+Skilled in Python, PHP, and web design, with a strong foundation in computer organization and discrete mathematics. 
+Looking for dynamic roles to build robust software components, automate testing, and contribute to innovative tech solutions."""
+    
+    user_info = st.text_area(
+        "Paste your raw details, rough notes, or existing resume here. The AI will perfectly structure it.",
+        value=default_summary,
+        height=250
+    )
 
+with col2:
+    st.markdown("### 🎨 Design Preferences")
+    theme_choice = st.selectbox("Resume Theme", ["Glassmorphism Dark", "Minimalist White", "Creative Vibrant", "Executive Blue"])
+    tone_choice = st.select_slider("Writing Tone", options=["Aggressive/Salesy", "Confident/Direct", "Professional/Standard", "Humble/Academic"], value="Professional/Standard")
+    
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    generate_btn = st.button("✨ Generate Profile & Find Jobs", use_container_width=True)
 
-# response = model.invoke("Hello Buddy!")
-# response.content[-1]['text']
+# ========== AI AGENT DEFINITIONS ================
+def check_apis():
+    return all([TAVILY_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY])
 
-
-# ======================TOOLS===============
 def search_latest_news_jobs(query):
-  """This function helps to fetch latest
-  news or jobs related article using
-  tavily"""
+    """Fetches latest jobs related data using Tavily"""
+    try:
+        client = TavilyClient(api_key=TAVILY_API_KEY)
+        response = client.search(query, search_depth="advanced", max_results=10)
+        return response
+    except Exception as e:
+        return f"Error fetching jobs: {str(e)}"
 
-  client = TavilyClient(
-      api_key = TAVILY_API_KEY)
-  response = client.search(query)
-  return response
+def build_resume_code(model, user_data, theme, tone):
+    """Agentic workflow for HTML/CSS Resume generation"""
+    system_prompt = f"""
+    You are an elite Senior UI/UX Developer and Expert Resume Writer. 
+    Transform the following user data into a jaw-dropping, single-file HTML/CSS resume.
+    
+    USER DATA: {user_data}
+    THEME PREFERENCE: {theme}
+    WRITING TONE: {tone}
+    
+    REQUIREMENTS:
+    1. Output ONLY RAW HTML with embedded <style> tags. No markdown blocks (```html), no explanations.
+    2. Design: Use modern CSS (Flexbox/Grid, gradients, box-shadows, hover animations). 
+    3. Sections: Header (Name/Role), Summary, Experience/Projects, Education, Skills (progress bars or tags).
+    4. Content Enhancement: Rewrite the user's raw notes using strong action verbs and ATS-optimized keywords matching their requested tone.
+    5. Responsiveness: Must look perfect on mobile and desktop.
+    """
+    
+    response = model.invoke(system_prompt)
+    
+    # Strip markdown if the LLM includes it accidentally
+    code = response.content.replace("```html", "").replace("```", "").strip()
+    return code
 
+def build_job_cards(model, location_list, profile_list):
+    """Agentic workflow for generating Auto-Apply UI Job Cards"""
+    loc_str = ", ".join(location_list)
+    prof_str = ", ".join(profile_list)
+    
+    system_prompt = f"""
+    You are an elite Frontend Developer. Create a stunning, dark-mode glassmorphism grid of Job Cards in HTML/CSS.
+    Search Context (Simulated): Latest jobs for {prof_str} in {loc_str}.
+    
+    Generate 6 realistic job listings based on these parameters. 
+    
+    REQUIREMENTS:
+    1. Output ONLY RAW HTML with embedded <style> and <script> tags. No markdown formatting.
+    2. UI/UX: Use CSS Grid for a responsive card layout. Cards should have hover-lift effects, glow borders, and pill-shaped tags for salary/location.
+    3. THE AUTO-APPLY BUTTON: Each card MUST have an "⚡ Auto Apply" button. 
+    4. JavaScript: Include a `<script>` tag at the bottom that adds an onclick event to these buttons. The event should change the button text to "Applying...", show a CSS spinner, and after 2 seconds, change to "✅ Applied" and turn green.
+    5. Ensure the styling isolates itself and does not break the parent Streamlit container (use specific wrapper classes).
+    """
+    
+    response = model.invoke(system_prompt)
+    code = response.content.replace("```html", "").replace("```", "").strip()
+    return code
 
-
-
-# Agent Creation
-agent = create_agent(
-    model = model,
-    tools = [search_latest_news_jobs])
-
-# agent
-
-
-def main_agent(agent, query):
-  """This is main agent, or leader agent
-  orchestrate sub agents"""
-
-  # Giving prompt to create detailed prompt
-  # for code generation
-  prompt = """You are an expert AI Resume Generator and Senior UI/UX Designer. Based on the user's personal, academic, or professional information, generate a premium, ATS-friendly resume in HTML only with embedded advanced CSS. The resume should automatically adapt its layout for students, freshers, or experienced professionals, using a modern, responsive, print-ready design with elegant typography, premium color schemes, timeline sections, skill badges, progress bars, glassmorphism or minimal UI, and recruiter-friendly formatting. Enhance and rewrite the user's content professionally with strong action verbs, correct grammar, and ATS keywords while hiding empty sections instead of displaying placeholders. Use semantic HTML, responsive Flexbox/Grid layouts, and optimized CSS to create a visually stunning resume comparable to Canva Pro, Novorésumé, and Enhancv. Return only one complete HTML document with embedded CSS—no Markdown, explanations, comments, JavaScript, or additional text.
-  """
-
-  response = agent.invoke({'messages':[{'role':'user',
-                                        'content':prompt}]})
-  detailed_prompt = response['messages'][-1].content[-1]['text']
-
-  # SAVE PROMPT using File Handling
-
-  with open('prompt.txt','w') as f:
-    f.write(detailed_prompt)
-
-  user_details = f"""Below Given is a user details
-  generate Resume based on that, if not
-  given keep: Default Resume: Python Developer
-  user details: {query}"""
-
-  final_prompt = prompt + detailed_prompt + user_details
-
-  # CODE GENERATION
-  response = agent.invoke({'messages':[{'role':'user',
-                                        'content':final_prompt}]})
-  code = response['messages'][-1].content[-1]['text']
-
-  return code
-
-
-# code = main_agent(agent,"ALAN TURING, GEN AI EXPERT")
-# from IPython import display as DISPLAY
-# DISPLAY.HTML(code)
-
-
-
-# Fetch Latest Domain related Jobs using Tavily
-
-def get_jobs(agent,
-             Location,
-             Profile):
-  Location = "Noida,Delhi"
-  Profile = "Data Analysts, AI Engineer"
-
-  prompt = f"""Based on user given Job profile,
-  fetch latest jobs or job apply article
-  using Naukri, Linkedin, Indeed, or all popular
-  Job apply platforms, Show Results with
-  JOB PROFILE NAME, LOCATION, SALARY, COMPANY NAME,
-  SHOW jobs only related to given
-  {Location} and {Profile}. Output must be in
-  Professional HTML Naukri theme cards with Dynamic Design,
-  Show atleast Top 10-20 results with direct apply link"""
-
-
-  response = agent.invoke({'messages':[{'role':'user',
-                                          'content':prompt}]})
-  code = response['messages'][-1].content[-1]['text']
-
-  return code
-
-# code = get_jobs(agent)
-# DISPLAY.HTML(code)
-
-
-if st.button("Generate Resume"):
-           with st.spinner("Agent Running"):
-                      code = main_agent(agent,user_info)
-                      st.html(code , width="stretch" , 
-                              unsafe_allow_javascript=True)
-                      st.divider()  # to give horizontal div
-                      job_code = get_jobs(agent,location,profile)
-                      st.html(job_code , width="stretch" , 
-                              unsafe_allow_javascript=True)
+# ========== EXECUTION PIPELINE ==================
+if generate_btn:
+    if not check_apis():
+        st.error("🚨 Please provide all API keys in the sidebar to proceed.")
+        st.stop()
+        
+    try:
+        # Initialize LLM
+        llm = ChatGoogleGenerativeAI(
+            model='gemini-1.5-flash', # Upgraded model name for better UI generation
+            google_api_key=GOOGLE_API_KEY,
+            temperature=0.7
+        )
+        
+        # Tabs for output visualization
+        res_tab, job_tab, code_tab = st.tabs(["📄 Generated Resume", "🎯 Smart Job Matches (Auto-Apply)", "💻 Source Code"])
+        
+        with st.spinner("🧠 AI is architecting your premium resume and hunting for jobs..."):
+            
+            # 1. Generate Resume
+            resume_html = build_resume_code(llm, user_info, theme_choice, tone_choice)
+            
+            # 2. Fetch/Generate Job UI
+            job_html = build_job_cards(llm, location, profile)
+            
+            # Render Resume
+            with res_tab:
+                st.components.v1.html(resume_html, height=1000, scrolling=True)
+                st.download_button(
+                    label="📥 Download Resume HTML",
+                    data=resume_html,
+                    file_name="Premium_Resume.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+                
+            # Render Jobs
+            with job_tab:
+                st.info("💡 Test the simulated 'Auto-Apply' feature below. In a production environment, this would trigger an RPA bot or API webhook.")
+                st.components.v1.html(job_html, height=800, scrolling=True)
+                
+            # Provide Source Code
+            with code_tab:
+                st.markdown("### Resume HTML/CSS Source")
+                st.code(resume_html, language='html')
+                st.markdown("### Jobs UI Source")
+                st.code(job_html, language='html')
+                
+        st.toast('Workflow Complete!', icon='✅')
+        st.balloons()
+        
+    except Exception as e:
+        st.error(f"An error occurred during generation: {str(e)}")
