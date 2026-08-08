@@ -151,6 +151,14 @@ def fetch_real_jobs(location_list, profile_list):
     except Exception as e:
         return []
 
+def extract_text_safely(response):
+    """Helper function to safely extract text whether the model returns a string or a list."""
+    content = response.content
+    if isinstance(content, list):
+        # If it's a list, extract the 'text' from each block and join them
+        return "".join([block.get("text", "") if isinstance(block, dict) else str(block) for block in content])
+    return str(content)
+
 def build_resume_code(model, user_data, theme, tone):
     """Agentic workflow for HTML/CSS Resume generation"""
     system_prompt = f"""
@@ -170,7 +178,10 @@ def build_resume_code(model, user_data, theme, tone):
     """
     
     response = model.invoke(system_prompt)
-    code = response.content.replace("```html", "").replace("```", "").strip()
+    
+    # Safely extract text and clean up markdown formatting
+    text_content = extract_text_safely(response)
+    code = text_content.replace("```html", "").replace("```", "").strip()
     return code
 
 def build_job_cards(model, location_list, profile_list, real_job_data):
@@ -204,7 +215,10 @@ def build_job_cards(model, location_list, profile_list, real_job_data):
     """
     
     response = model.invoke(system_prompt)
-    code = response.content.replace("```html", "").replace("```", "").strip()
+    
+    # Safely extract text and clean up markdown formatting
+    text_content = extract_text_safely(response)
+    code = text_content.replace("```html", "").replace("```", "").strip()
     return code
 
 # ========== EXECUTION PIPELINE ==================
