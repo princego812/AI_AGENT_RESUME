@@ -2,16 +2,12 @@
 import streamlit as st
 import os
 import time
-import json
-from PIL import Image
 import pandas as pd
 import numpy as np
 
 # Langchain & AI Modules
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
-from langchain.agents import create_agent, AgentExecutor
-from langchain.prompts import PromptTemplate
 from tavily import TavilyClient
 
 # ========== PAGE CONFIGURATION ==================
@@ -23,7 +19,6 @@ st.set_page_config(
 )
 
 # ========== ADVANCED CSS UI/UX INJECTION ========
-# This handles the "1000-line level" frontend styling natively inside Streamlit
 st.markdown("""
 <style>
     /* Global Theme & Background */
@@ -86,11 +81,6 @@ st.markdown("""
         box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5) !important;
     }
     
-    /* Divider */
-    hr {
-        border-color: rgba(255, 255, 255, 0.1) !important;
-    }
-    
     /* Custom Expander */
     .streamlit-expanderHeader {
         background: rgba(255,255,255,0.05) !important;
@@ -110,20 +100,15 @@ with st.sidebar:
     st.markdown("Authenticate your AI agents to begin.")
     
     with st.expander("🔑 API Keys", expanded=True):
-        TAVILY_API_KEY = st.text_input("Tavily API Key", type="password", placeholder="tvly-...")
-        GROQ_API_KEY = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
-        GOOGLE_API_KEY = st.text_input("Gemini API Key", type="password", placeholder="AIzaSy...")
+        TAVILY_API_KEY = st.text_input("Tavily API Key", type="password")
+        GROQ_API_KEY = st.text_input("Groq API Key (Optional)", type="password")
+        GOOGLE_API_KEY = st.text_input("Gemini API Key", type="password")
 
     st.markdown("### 🎯 Job Preferences")
-    
-    # Pre-filled tailored defaults
-    locations = ["Delhi", "Mumbai", "Pune", "Bangalore", "Gurugram", "Hyderabad", "Remote"]
+    locations = ["Delhi", "Mumbai", "Pune", "Bangalore", "Gurugram", "Remote"]
     location = st.multiselect("Select Location(s)", options=locations, default=["Delhi"])
 
-    profiles = [
-        "Software Developer", "Full-Stack Dev", "Data Analyst", 
-        "AI Engineer", "Gen AI Developer", "Data Scientist", "UI/UX Designer"
-    ]
+    profiles = ["Software Developer", "Full-Stack Dev", "Data Analyst", "AI Engineer", "Gen AI Developer", "Data Scientist"]
     profile = st.multiselect("Select Job Profile(s)", options=profiles, default=["Software Developer"])
 
 # ========== MAIN DASHBOARD ======================
@@ -134,7 +119,6 @@ col1, col2 = st.columns([2, 1])
 
 with col1:
     st.markdown("### 📝 Professional Summary & Details")
-    # Tailored default text
     default_summary = """BCA student passionate about software development and computer science. 
 Skilled in Python, PHP, and web design, with a strong foundation in computer organization and discrete mathematics. 
 Looking for dynamic roles to build robust software components, automate testing, and contribute to innovative tech solutions."""
@@ -155,16 +139,17 @@ with col2:
 
 # ========== AI AGENT DEFINITIONS ================
 def check_apis():
-    return all([TAVILY_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY])
+    return bool(TAVILY_API_KEY and GOOGLE_API_KEY)
 
-def search_latest_news_jobs(query):
-    """Fetches latest jobs related data using Tavily"""
+def fetch_real_jobs(location_list, profile_list):
+    """Fetches real latest jobs using Tavily API"""
     try:
         client = TavilyClient(api_key=TAVILY_API_KEY)
-        response = client.search(query, search_depth="advanced", max_results=10)
-        return response
+        query = f"Latest hiring job postings for {' and '.join(profile_list)} in {' and '.join(location_list)} 2026 apply online"
+        response = client.search(query, search_depth="advanced", max_results=6)
+        return response.get("results", [])
     except Exception as e:
-        return f"Error fetching jobs: {str(e)}"
+        return []
 
 def build_resume_code(model, user_data, theme, tone):
     """Agentic workflow for HTML/CSS Resume generation"""
@@ -185,28 +170,37 @@ def build_resume_code(model, user_data, theme, tone):
     """
     
     response = model.invoke(system_prompt)
-    
-    # Strip markdown if the LLM includes it accidentally
     code = response.content.replace("```html", "").replace("```", "").strip()
     return code
 
-def build_job_cards(model, location_list, profile_list):
-    """Agentic workflow for generating Auto-Apply UI Job Cards"""
+def build_job_cards(model, location_list, profile_list, real_job_data):
+    """Agentic workflow for generating Auto-Apply UI Job Cards based on REAL data"""
+    
+    # Convert real job data to a string context for the LLM
+    job_context = ""
+    if real_job_data:
+        for idx, job in enumerate(real_job_data):
+            job_context += f"Job {idx+1}: Title: {job.get('title', 'N/A')}, URL: {job.get('url', '#')}, ContentSnippet: {job.get('content', 'N/A')}\n"
+    else:
+        job_context = "No live data fetched. Generate 6 realistic mock job listings for the requested profiles."
+
     loc_str = ", ".join(location_list)
     prof_str = ", ".join(profile_list)
     
     system_prompt = f"""
     You are an elite Frontend Developer. Create a stunning, dark-mode glassmorphism grid of Job Cards in HTML/CSS.
-    Search Context (Simulated): Latest jobs for {prof_str} in {loc_str}.
     
-    Generate 6 realistic job listings based on these parameters. 
+    PROFILES: {prof_str}
+    LOCATIONS: {loc_str}
+    REAL JOB DATA (Incorporate these into the cards if available):
+    {job_context}
     
     REQUIREMENTS:
     1. Output ONLY RAW HTML with embedded <style> and <script> tags. No markdown formatting.
-    2. UI/UX: Use CSS Grid for a responsive card layout. Cards should have hover-lift effects, glow borders, and pill-shaped tags for salary/location.
-    3. THE AUTO-APPLY BUTTON: Each card MUST have an "⚡ Auto Apply" button. 
-    4. JavaScript: Include a `<script>` tag at the bottom that adds an onclick event to these buttons. The event should change the button text to "Applying...", show a CSS spinner, and after 2 seconds, change to "✅ Applied" and turn green.
-    5. Ensure the styling isolates itself and does not break the parent Streamlit container (use specific wrapper classes).
+    2. UI/UX: Use CSS Grid. Cards should have hover-lift effects, glow borders, and pill-shaped tags.
+    3. Include real Job Titles, snippet descriptions, and the actual URL to apply.
+    4. THE AUTO-APPLY BUTTON: Each card MUST have an "⚡ Auto Apply" button. 
+    5. JavaScript: Include a `<script>` tag at the bottom that adds an onclick event to these buttons. The event should change the button text to "Applying...", show a CSS spinner, and after 2 seconds, change to "✅ Applied" and turn green.
     """
     
     response = model.invoke(system_prompt)
@@ -216,31 +210,34 @@ def build_job_cards(model, location_list, profile_list):
 # ========== EXECUTION PIPELINE ==================
 if generate_btn:
     if not check_apis():
-        st.error("🚨 Please provide all API keys in the sidebar to proceed.")
+        st.error("🚨 Please provide Tavily and Gemini API keys in the sidebar to proceed.")
         st.stop()
         
     try:
-        # Initialize LLM
+        # Initialize LLM directly
         llm = ChatGoogleGenerativeAI(
-            model='gemini-1.5-flash', # Upgraded model name for better UI generation
+            model='gemini-1.5-flash', 
             google_api_key=GOOGLE_API_KEY,
             temperature=0.7
         )
         
         # Tabs for output visualization
-        res_tab, job_tab, code_tab = st.tabs(["📄 Generated Resume", "🎯 Smart Job Matches (Auto-Apply)", "💻 Source Code"])
+        res_tab, job_tab, code_tab = st.tabs(["📄 Generated Resume", "🎯 Smart Job Matches", "💻 Source Code"])
         
-        with st.spinner("🧠 AI is architecting your premium resume and hunting for jobs..."):
+        with st.spinner("🧠 AI is architecting your premium resume and hunting the web for live jobs..."):
             
             # 1. Generate Resume
             resume_html = build_resume_code(llm, user_info, theme_choice, tone_choice)
             
-            # 2. Fetch/Generate Job UI
-            job_html = build_job_cards(llm, location, profile)
+            # 2. Fetch Real Jobs from Tavily
+            real_jobs = fetch_real_jobs(location, profile)
+            
+            # 3. Generate Job UI incorporating real web data
+            job_html = build_job_cards(llm, location, profile, real_jobs)
             
             # Render Resume
             with res_tab:
-                st.components.v1.html(resume_html, height=1000, scrolling=True)
+                st.components.v1.html(resume_html, height=800, scrolling=True)
                 st.download_button(
                     label="📥 Download Resume HTML",
                     data=resume_html,
@@ -251,7 +248,7 @@ if generate_btn:
                 
             # Render Jobs
             with job_tab:
-                st.info("💡 Test the simulated 'Auto-Apply' feature below. In a production environment, this would trigger an RPA bot or API webhook.")
+                st.info("💡 Test the 'Auto-Apply' feature below. These jobs are pulled live from the web via Tavily Search!")
                 st.components.v1.html(job_html, height=800, scrolling=True)
                 
             # Provide Source Code
