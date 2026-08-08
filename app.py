@@ -111,14 +111,32 @@ with st.sidebar:
         selected_location = f"{city}, {country}"
 
     st.markdown("<div class='sidebar-header'>💼 Industry & Role Filter</div>", unsafe_allow_html=True)
-    industry = st.selectbox("Select Industry", list(JOB_TAXONOMY.keys()), index=0)
     
-    # Auto-select relevant roles based on industry
-    role_options = JOB_TAXONOMY[industry]
-    selected_role = st.selectbox("Select Specific Role", role_options, index=1 if industry == "Tech & Engineering" else 0)
+    # MULTIPLE INDUSTRIES SELECTION
+    selected_industries = st.multiselect(
+        "Select Industry(s)", 
+        list(JOB_TAXONOMY.keys()), 
+        default=["Tech & Engineering"]
+    )
+    
+    # Aggregating roles based on all selected industries
+    available_roles = []
+    for ind in selected_industries:
+        available_roles.extend(JOB_TAXONOMY[ind])
+    
+    # MULTIPLE ROLES SELECTION
+    selected_roles = st.multiselect(
+        "Select Specific Role(s)", 
+        available_roles, 
+        default=["Software Developer"] if "Software Developer" in available_roles else []
+    )
 
     st.markdown("<div class='sidebar-header'>🕒 Employment Type</div>", unsafe_allow_html=True)
-    emp_type = st.multiselect("Contract Type", ["Full-time", "Part-time", "Internship", "Freelance", "Gig/Contract"], default=["Full-time", "Internship"])
+    emp_type = st.multiselect(
+        "Contract Type", 
+        ["Full-time", "Part-time", "Internship", "Freelance", "Gig/Contract"], 
+        default=["Full-time", "Internship"]
+    )
 
 def check_apis():
     return bool(TAVILY_API_KEY and GOOGLE_API_KEY)
@@ -200,8 +218,12 @@ with tab1:
     st.markdown("### Build Your Base Resume")
     colA, colB = st.columns(2)
     with colA:
-        target_role = st.text_input("Target Role", value=selected_role)
+        # Join selected roles into a single string for target role context
+        roles_str = ", ".join(selected_roles) if selected_roles else "Professional"
+        
+        target_role = st.text_input("Target Roles", value=roles_str)
         raw_exp = st.text_area("Raw Experience & Details", height=200, value="BCA student, skilled in Python, PHP, web design. Strong foundation in discrete math. Building robust tech solutions.")
+        
         if st.button("Generate Base Resume", use_container_width=True):
             if check_apis():
                 with st.spinner("Structuring your data..."):
@@ -220,17 +242,20 @@ with tab1:
 # --- TAB 2: GLOBAL JOB BOARD & AUTO-APPLY ---
 with tab2:
     st.markdown("### 🔍 Live Web Job Scraper")
-    st.write(f"**Current Search Scope:** `{selected_role}` in `{selected_location}`")
+    display_roles = ", ".join(selected_roles) if selected_roles else "Any Role"
+    st.write(f"**Current Search Scope:** `{display_roles}` in `{selected_location}`")
     
     if st.button("Search Web (Tavily)", use_container_width=True):
-        if check_apis():
-            with st.spinner(f"Scraping the web for {selected_role} roles in {selected_location}..."):
+        if not selected_roles:
+            st.warning("Please select at least one role from the sidebar to search.")
+        elif check_apis():
+            with st.spinner(f"Scraping the web for {display_roles} roles in {selected_location}..."):
                 client = TavilyClient(api_key=TAVILY_API_KEY)
                 
                 jobs = []
                 # Fetch across the selected employment types
                 for e_type in emp_type:
-                    query = f"Latest {e_type} {selected_role} job openings hiring in {selected_location} 2026 apply online"
+                    query = f"Latest {e_type} jobs for {display_roles} hiring in {selected_location} 2026 apply online"
                     res = client.search(query, search_depth="advanced", max_results=5)
                     
                     for r in res.get("results", []):
