@@ -30,18 +30,95 @@ st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #e2e8f0; font-family: 'Inter', sans-serif; }
     h1, h2, h3 { background: -webkit-linear-gradient(45deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div>div { background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; border-radius: 8px !important; }
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div>div, .stMultiSelect>div>div>div { background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; border-radius: 8px !important; }
     .job-card { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1); }
-    .job-type-badge { background: #38bdf8; color: black; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .job-type-badge { background: #38bdf8; color: black; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-left: 10px; }
+    .sidebar-header { color: #38bdf8; font-weight: bold; font-size: 1.1rem; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== SIDEBAR: API KEYS & SETTINGS ========
+# ========== MASSIVE DATA DICTIONARIES ===========
+# Global Locations
+GLOBAL_LOCATIONS = {
+    "Remote / Global": ["Worldwide Remote", "US-Only Remote", "EMEA Remote", "APAC Remote"],
+    "Asia": {
+        "India": ["Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Chennai", "Gurugram"],
+        "Singapore": ["Singapore City"],
+        "Japan": ["Tokyo", "Osaka", "Kyoto"],
+        "UAE": ["Dubai", "Abu Dhabi"]
+    },
+    "North America": {
+        "United States": ["New York", "San Francisco", "Austin", "Seattle", "Chicago", "Boston"],
+        "Canada": ["Toronto", "Vancouver", "Montreal", "Waterloo"]
+    },
+    "Europe": {
+        "United Kingdom": ["London", "Manchester", "Edinburgh"],
+        "Germany": ["Berlin", "Munich", "Frankfurt"],
+        "Netherlands": ["Amsterdam", "Rotterdam"],
+        "France": ["Paris", "Lyon"]
+    },
+    "Oceania": {
+        "Australia": ["Sydney", "Melbourne", "Brisbane"],
+        "New Zealand": ["Auckland", "Wellington"]
+    }
+}
+
+# Industry & Job Roles
+JOB_TAXONOMY = {
+    "Tech & Engineering": [
+        "Software Developer", "Python/PHP Developer", "Web Designer", "AI/ML Engineer", 
+        "Data Scientist", "Full-Stack Developer", "DevOps Engineer", "Cloud Architect", 
+        "Cybersecurity Analyst", "Game Developer", "QA Automation Engineer", "Systems Programmer"
+    ],
+    "Business & Finance": [
+        "Financial Analyst", "Investment Banker", "Accountant", "Business Operations Manager",
+        "Strategy Consultant", "Supply Chain Manager", "Risk Analyst"
+    ],
+    "Marketing & Sales": [
+        "Digital Marketing Manager", "SEO Specialist", "Content Strategist", "Sales Executive",
+        "B2B Account Manager", "Social Media Director", "Growth Hacker"
+    ],
+    "Healthcare & Medical": [
+        "Registered Nurse", "Clinical Researcher", "Healthcare Administrator", "Medical Writer",
+        "Biomedical Engineer", "Pharmacist", "Physiotherapist"
+    ],
+    "Creative, Arts & Media": [
+        "UI/UX Designer", "Graphic Designer", "Video Editor", "Journalist", 
+        "Copywriter", "Art Director", "Classical Music Instructor", "Audio Engineer"
+    ],
+    "Education & Academia": [
+        "University Professor", "Curriculum Developer", "Instructional Designer", 
+        "EdTech Consultant", "Tutor"
+    ]
+}
+
+# ========== SIDEBAR: COMPREHENSIVE FILTERS ========
 with st.sidebar:
-    st.markdown("## ⚙️ Settings & Auth")
+    st.markdown("## ⚙️ Auth & APIs")
     with st.expander("🔑 API Keys", expanded=True):
         TAVILY_API_KEY = st.text_input("Tavily API Key", type="password")
         GOOGLE_API_KEY = st.text_input("Gemini API Key", type="password")
+
+    st.markdown("<div class='sidebar-header'>🌍 Global Location Filter</div>", unsafe_allow_html=True)
+    region = st.selectbox("Select Region", list(GLOBAL_LOCATIONS.keys()), index=1)
+    
+    selected_location = "Remote"
+    if region == "Remote / Global":
+        selected_location = st.selectbox("Remote Type", GLOBAL_LOCATIONS[region])
+    else:
+        country = st.selectbox("Select Country", list(GLOBAL_LOCATIONS[region].keys()), index=0)
+        city = st.selectbox("Select City/State", GLOBAL_LOCATIONS[region][country], index=0)
+        selected_location = f"{city}, {country}"
+
+    st.markdown("<div class='sidebar-header'>💼 Industry & Role Filter</div>", unsafe_allow_html=True)
+    industry = st.selectbox("Select Industry", list(JOB_TAXONOMY.keys()), index=0)
+    
+    # Auto-select relevant roles based on industry
+    role_options = JOB_TAXONOMY[industry]
+    selected_role = st.selectbox("Select Specific Role", role_options, index=1 if industry == "Tech & Engineering" else 0)
+
+    st.markdown("<div class='sidebar-header'>🕒 Employment Type</div>", unsafe_allow_html=True)
+    emp_type = st.multiselect("Contract Type", ["Full-time", "Part-time", "Internship", "Freelance", "Gig/Contract"], default=["Full-time", "Internship"])
 
 def check_apis():
     return bool(TAVILY_API_KEY and GOOGLE_API_KEY)
@@ -68,7 +145,7 @@ def generate_base_resume(llm, raw_text, role):
     try:
         return json.loads(text)
     except:
-        return {"Summary": text} # Fallback if JSON parsing fails
+        return {"Summary": text}
 
 def tailor_resume(llm, base_json, jd_text):
     prompt = f"""
@@ -116,16 +193,16 @@ def extract_pdf_text(uploaded_file):
 
 # ========== MAIN UI TABS ========================
 st.markdown("<h1 style='text-align: center;'>💼 Ultimate Career Engine</h1>", unsafe_allow_html=True)
-tab1, tab2, tab3, tab4 = st.tabs(["📝 1. Resume Builder", "🎯 2. Job Board & Auto-Apply", "📊 3. ATS Scorer", "✉️ 4. Cold Emails"])
+tab1, tab2, tab3, tab4 = st.tabs(["📝 1. Resume Builder", "🎯 2. Global Job Board", "📊 3. ATS Scorer", "✉️ 4. Cold Emails"])
 
 # --- TAB 1: RESUME BUILDER ---
 with tab1:
     st.markdown("### Build Your Base Resume")
     colA, colB = st.columns(2)
     with colA:
-        target_role = st.text_input("Target Role", value="Software Developer")
-        raw_exp = st.text_area("Raw Experience & Details", height=200, value="BCA student, skilled in Python, PHP, web design. Strong foundation in discrete math.")
-        if st.button("Generate Base Resume"):
+        target_role = st.text_input("Target Role", value=selected_role)
+        raw_exp = st.text_area("Raw Experience & Details", height=200, value="BCA student, skilled in Python, PHP, web design. Strong foundation in discrete math. Building robust tech solutions.")
+        if st.button("Generate Base Resume", use_container_width=True):
             if check_apis():
                 with st.spinner("Structuring your data..."):
                     llm = get_llm()
@@ -140,70 +217,74 @@ with tab1:
         else:
             st.info("Generate a base resume first to unlock Job Tailoring and Cold Emails.")
 
-# --- TAB 2: JOB BOARD & AUTO-APPLY ---
+# --- TAB 2: GLOBAL JOB BOARD & AUTO-APPLY ---
 with tab2:
-    st.markdown("### 🔍 Filter & Find Opportunities")
+    st.markdown("### 🔍 Live Web Job Scraper")
+    st.write(f"**Current Search Scope:** `{selected_role}` in `{selected_location}`")
     
-    # Filter Panel
-    with st.expander("🛠️ Search Filters"):
-        f_col1, f_col2, f_col3 = st.columns(3)
-        search_query = f_col1.text_input("Keywords", "Python Developer")
-        job_type = f_col2.selectbox("Type", ["Full-time", "Internship", "Freelance", "Gig (Hobby)"])
-        location = f_col3.text_input("Location", "Remote")
-        
-        if st.button("Search Web (Tavily)"):
-            if check_apis():
-                with st.spinner("Fetching live jobs..."):
-                    client = TavilyClient(api_key=TAVILY_API_KEY)
-                    res = client.search(f"{job_type} {search_query} jobs in {location}", search_depth="advanced", max_results=10)
+    if st.button("Search Web (Tavily)", use_container_width=True):
+        if check_apis():
+            with st.spinner(f"Scraping the web for {selected_role} roles in {selected_location}..."):
+                client = TavilyClient(api_key=TAVILY_API_KEY)
+                
+                jobs = []
+                # Fetch across the selected employment types
+                for e_type in emp_type:
+                    query = f"Latest {e_type} {selected_role} job openings hiring in {selected_location} 2026 apply online"
+                    res = client.search(query, search_depth="advanced", max_results=5)
                     
-                    # Normalize data and inject simulated types based on the search
-                    jobs = []
                     for r in res.get("results", []):
-                        jobs.append({"title": r.get("title", "Unknown Role"), "url": r.get("url", "#"), "desc": r.get("content", ""), "type": job_type, "company": r.get("title", "Company").split("-")[0].strip()})
-                    st.session_state.jobs_data = jobs
-            else:
-                st.error("Missing API Keys.")
+                        jobs.append({
+                            "title": r.get("title", "Unknown Role"), 
+                            "url": r.get("url", "#"), 
+                            "desc": r.get("content", ""), 
+                            "type": e_type, 
+                            "company": r.get("title", "Company").split("-")[0].strip()
+                        })
+                st.session_state.jobs_data = jobs
+                st.success(f"Found {len(jobs)} total live postings!")
+        else:
+            st.error("Missing API Keys.")
 
-    # Segmented Job Slides
-    t_ft, t_int, t_free, t_gig = st.tabs(["Full-Time", "Internships", "Freelance", "Gigs"])
+    # Segmented Job Slides based on fetched types
+    tabs_list = st.tabs(["Full-time", "Part-time", "Internship", "Freelance", "Gig/Contract"])
+    tab_mapping = dict(zip(["Full-time", "Part-time", "Internship", "Freelance", "Gig/Contract"], tabs_list))
     
-    def render_job_list(filter_type):
-        filtered = [j for j in st.session_state.jobs_data if j["type"] == filter_type]
-        if not filtered:
-            st.info(f"No {filter_type} jobs fetched yet. Run a search above.")
-            return
+    def render_job_list(filter_type, current_tab):
+        with current_tab:
+            filtered = [j for j in st.session_state.jobs_data if j["type"] == filter_type]
+            if not filtered:
+                st.info(f"No {filter_type} roles fetched yet. Run a search above.")
+                return
 
-        selected_jobs = []
-        for idx, job in enumerate(filtered):
-            st.markdown(f"""
-            <div class='job-card'>
-                <h4>{job['title']} <span class='job-type-badge'>{job['type']}</span></h4>
-                <p style='font-size: 14px; color: #cbd5e1;'>{job['desc'][:150]}...</p>
-                <a href="{job['url']}" target="_blank" style="color: #38bdf8;">View Original Posting</a>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.checkbox(f"Select for Auto-Apply (ID: {idx})", key=f"sel_{filter_type}_{idx}"):
-                selected_jobs.append(job)
-        
-        if selected_jobs:
-            st.warning("⚠️ **Disclaimer:** 'Apply to All' will generate tailored resumes and attempt API submission where possible. Otherwise, it prepares data for manual review.")
-            if st.button(f"🚀 Tailor & Apply to {len(selected_jobs)} Jobs", key=f"apply_{filter_type}"):
-                if not st.session_state.base_resume:
-                    st.error("You need to generate a Base Resume in Tab 1 first!")
-                else:
-                    llm = get_llm()
-                    for sj in selected_jobs:
-                        with st.spinner(f"Tailoring resume for {sj['title']}..."):
-                            tailored = tailor_resume(llm, st.session_state.base_resume, sj['desc'])
-                            st.session_state.tailored_resumes[sj['title']] = tailored
-                            st.success(f"✅ Prepared & simulated submission for: {sj['title']}")
-                    st.info("Check 'Base Resume' tab to see tailored versions (in memory) or 'Cold Email' tab to follow up!")
+            selected_jobs = []
+            for idx, job in enumerate(filtered):
+                st.markdown(f"""
+                <div class='job-card'>
+                    <h4>{job['title']} <span class='job-type-badge'>{job['type']}</span></h4>
+                    <p style='font-size: 14px; color: #cbd5e1;'>{job['desc'][:200]}...</p>
+                    <a href="{job['url']}" target="_blank" style="color: #38bdf8;">View Original Posting</a>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.checkbox(f"Select for Auto-Apply (ID: {idx})", key=f"sel_{filter_type}_{idx}"):
+                    selected_jobs.append(job)
+            
+            if selected_jobs:
+                st.warning("⚠️ **Disclaimer:** 'Apply to All' will generate tailored resumes and prepare data for review.")
+                if st.button(f"🚀 Tailor & Apply to {len(selected_jobs)} Jobs", key=f"apply_{filter_type}"):
+                    if not st.session_state.base_resume:
+                        st.error("You need to generate a Base Resume in Tab 1 first!")
+                    else:
+                        llm = get_llm()
+                        for sj in selected_jobs:
+                            with st.spinner(f"Tailoring resume for {sj['title']}..."):
+                                tailored = tailor_resume(llm, st.session_state.base_resume, sj['desc'])
+                                st.session_state.tailored_resumes[sj['title']] = tailored
+                                st.success(f"✅ Prepared & simulated submission for: {sj['title']}")
+                        st.info("Check 'Cold Email' tab to follow up with HR!")
 
-    with t_ft: render_job_list("Full-time")
-    with t_int: render_job_list("Internship")
-    with t_free: render_job_list("Freelance")
-    with t_gig: render_job_list("Gig (Hobby)")
+    for e_type, t_obj in tab_mapping.items():
+        render_job_list(e_type, t_obj)
 
 # --- TAB 3: ATS SCORER ---
 with tab3:
@@ -225,7 +306,7 @@ with tab3:
         else:
             st.warning("No Base Resume found. Go to Tab 1 to generate one.")
 
-    if st.button("Score Resume"):
+    if st.button("Score Resume", use_container_width=True):
         if not resume_text_to_score:
             st.error("Please provide a resume to score.")
         elif not check_apis():
@@ -233,7 +314,7 @@ with tab3:
         else:
             with st.spinner("Analyzing against ATS algorithms..."):
                 llm = get_llm()
-                jd = target_jd if target_jd else "General Software Industry Standards"
+                jd = target_jd if target_jd else "General Industry Standards"
                 score_report = score_ats(llm, resume_text_to_score, jd)
                 st.markdown("### 📊 ATS Report")
                 st.markdown(score_report)
@@ -252,7 +333,7 @@ with tab4:
         selected_job_title = st.selectbox("Select a Job to email about", job_titles)
         selected_job = next(j for j in st.session_state.jobs_data if j['title'] == selected_job_title)
         
-        if st.button("Draft Cold Email"):
+        if st.button("Draft Cold Email", use_container_width=True):
             if check_apis():
                 with st.spinner("Drafting email..."):
                     llm = get_llm()
@@ -263,5 +344,5 @@ with tab4:
                 
         if "current_draft" in st.session_state:
             email_text = st.text_area("Review & Edit Email", value=st.session_state.current_draft, height=250)
-            if st.button("📤 Send Email (Simulated)"):
+            if st.button("📤 Send Email (Simulated)", use_container_width=True):
                 st.success(f"Email officially 'sent' to HR regarding {selected_job['title']}! (Timestamp: {pd.Timestamp.now()})")
