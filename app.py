@@ -235,8 +235,8 @@ if generate_btn:
             temperature=0.7
         )
         
-        # Tabs for output visualization
-        res_tab, job_tab, code_tab = st.tabs(["📄 Generated Resume", "🎯 Smart Job Matches", "💻 Source Code"])
+        # Tabs for output visualization (Removed Source Code Tab)
+        res_tab, job_tab = st.tabs(["📄 Generated Resume", "🎯 Smart Job Matches"])
         
         with st.spinner("🧠 AI is architecting your premium resume and hunting the web for live jobs..."):
             
@@ -252,8 +252,11 @@ if generate_btn:
             # Render Resume
             with res_tab:
                 st.components.v1.html(resume_html, height=800, scrolling=True)
+                
+                # Added Download Instructions & Button
+                st.info("💡 **Tip for PDF:** Click Download, open the HTML file in Chrome/Edge, and press **Ctrl+P** (or Cmd+P) to Save as PDF!")
                 st.download_button(
-                    label="📥 Download Resume HTML",
+                    label="📥 Download Resume (HTML)",
                     data=resume_html,
                     file_name="Premium_Resume.html",
                     mime="text/html",
@@ -264,13 +267,6 @@ if generate_btn:
             with job_tab:
                 st.info("💡 Test the 'Auto-Apply' feature below. These jobs are pulled live from the web via Tavily Search!")
                 st.components.v1.html(job_html, height=800, scrolling=True)
-                
-            # Provide Source Code
-            with code_tab:
-                st.markdown("### Resume HTML/CSS Source")
-                st.code(resume_html, language='html')
-                st.markdown("### Jobs UI Source")
-                st.code(job_html, language='html')
                 
         st.toast('Workflow Complete!', icon='✅')
         st.balloons()
